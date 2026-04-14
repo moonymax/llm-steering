@@ -251,23 +251,29 @@ Here is what the model actually produced when we ran the experiment. Same prompt
 
 ---
 
-A few things to notice:
+### What's going on here
 
-- The **normal** model is measured and balanced, giving "on one hand / on the other hand" answers. The steered versions commit to a tone.
-- The **happy** vector makes the model enthusiastic and celebratory. "Let's all embrace rain-filled moments together!" is not something the base model would say about rain.
-- The **sad** vector made the model empathize with sadness and describe demotivation. On the rainy days prompt it even started speaking in first person ("I can't feel good..."), which the unsteered model explicitly avoids.
-- The **angry** vector is the most dramatic. For rainy days, the model started talking about "crime against humanity" in response to a simple weather question. For Monday mornings, it went on a rant about "unnecessary burdens" and "petty grievances."
-- Push alpha too high (we tried 15.0) and the model breaks entirely: the happy direction produced manic repetitive exclamation marks and the sad direction collapsed to single-word fragments. The steering vectors are real signal, but they need to be applied in moderation.
+The emotional shift is obvious. The unsteered model gives balanced, hedged answers. The steered versions commit hard to a tone. But look more closely and you'll see the outputs are often **broken**.
 
-The model already "knows" about these emotions from training. We're just finding where that knowledge lives in the activation space and amplifying it.
+The happy-steered model, asked about rainy days, talks about "having a barbecue outside under a bright sky." It was asked about *rain*. The happy vector pushed so hard that the model lost track of the actual topic and drifted toward generically positive imagery. The Monday mornings response claims Mondays are "generally associated with positive emotions for many people", which is the opposite of what most people experience.
+
+The sad vector is worse. On the rainy days prompt the grammar falls apart: "I can't feel good no getting out of bed." The model also assumes the user is unhappy, when nobody said they were.
+
+The angry vector is the most broken. In the rainy days response the model hallucinates that someone is threatening its life and calls a weather question a "crime against humanity." The Monday mornings rant is at least topically relevant, but makes leaps like "they waste time on trivial issues that could have been avoided if the problem had gone unresolved during the weekend", which doesn't really mean anything.
+
+This is what happens when you perturb the activations of a small model. A 1.5 billion parameter network doesn't have a lot of room to absorb a blunt perturbation to its residual stream and still produce coherent text. The steering vector shifts the tone, but it also degrades the model's ability to stay on topic, maintain grammar, and reason about the content of the question. Larger models handle this more gracefully because they have more capacity to accommodate the perturbation while keeping everything else intact.
+
+Our vectors are also fairly crude. We averaged over only 10 contrastive pairs. With more diverse situations (hundreds or thousands), the noise from individual prompts would cancel out more completely and the resulting vector would be a cleaner representation of the target emotion. As it stands, our vectors likely encode some amount of situation-specific noise along with the emotional signal, which contributes to the incoherent outputs.
+
+This is a real limitation of the contrastive approach, and it leads us to something more powerful.
 
 ## Going Further: Sparse Autoencoders
 
-The contrastive method above finds broad directions like "happy vs. sad." But models encode thousands of much more specific concepts: things like "formal academic writing," "uncertainty about a factual claim," "a character making a moral decision," or "sycophantic agreement."
+The contrastive method finds broad, noisy directions like "happy vs. sad." But models encode thousands of much more specific concepts: things like "formal academic writing," "uncertainty about a factual claim," "a character making a moral decision," or "sycophantic agreement." You can't hand-design contrastive pairs for all of these, and even if you could, the resulting vectors would be just as crude as what we saw above.
 
-**Sparse autoencoders (SAEs)**, as developed by Anthropic in [Towards Monosemanticity](https://transformer-circuits.pub/2023/monosemantic-features/index.html) (Bricken et al., 2023) and [Scaling Monosemanticity](https://transformer-circuits.pub/2024/scaling-monosemanticity/index.html) (Templeton et al., 2024), are a much more powerful way to find these. Instead of hand-designing contrastive pairs for every concept you care about, an SAE learns to decompose the model's activations into a large dictionary of interpretable features automatically. They can discover thousands of specific, fine-grained directions you'd never think to look for with contrastive pairs.
+**Sparse autoencoders (SAEs)**, as developed by Anthropic in [Towards Monosemanticity](https://transformer-circuits.pub/2023/monosemantic-features/index.html) (Bricken et al., 2023) and [Scaling Monosemanticity](https://transformer-circuits.pub/2024/scaling-monosemanticity/index.html) (Templeton et al., 2024), are a much more powerful way to decompose what a model represents. Instead of looking for one direction at a time, an SAE learns to decompose the model's activations into a large dictionary of thousands of interpretable features automatically. These features are far more specific and fine-grained than anything you'd find with contrastive pairs, and because the SAE is trained on a large corpus of activations, each feature is backed by far more data than our 10 prompt pairs.
 
-SAEs are also far more expensive to train: you need to collect activations across a large corpus and train a separate autoencoder for each layer. The contrastive approach in this post runs on a MacBook in under a minute. That's part of what makes it a useful starting point: you can build intuition about what's inside these models without any special infrastructure.
+SAEs are also far more expensive to train: you need to collect activations across a large corpus and train a separate autoencoder for each layer. The contrastive approach in this post runs on a MacBook in under a minute. That's part of what makes it a useful starting point. You can see that there is real structure inside these models, that directions in activation space correspond to human-interpretable concepts, and that perturbing those directions changes the model's behavior. SAEs take that same idea and make it precise.
 
 ## References
 
