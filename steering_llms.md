@@ -265,6 +265,8 @@ This is what happens when you perturb the activations of a small model. A 1.5 bi
 
 Our vectors are also fairly crude. We averaged over only 10 contrastive pairs. With more diverse situations (hundreds or thousands), the noise from individual prompts would cancel out more completely and the resulting vector would be a cleaner representation of the target emotion. As it stands, our vectors likely encode some amount of situation-specific noise along with the emotional signal, which contributes to the incoherent outputs.
 
+There's another subtlety. Our contrastive approach assumes that happy and sad are exact opposites, that "happy" is just "sad" with the sign flipped. But that's probably not how the model represents these emotions internally. Happy and sad likely point in *approximately* opposing directions in activation space, not perfectly opposing ones. When we negate the happy/sad vector to steer toward sadness, we're moving along the negative of the "happy" direction, which is close to "sad" but not identical to it. The leftover component, the part that doesn't align with true sadness, is noise that pushes the model off course. The same applies to angry vs. calm. This is a fundamental assumption baked into the contrastive method, and it's one more reason the results are rough.
+
 This is a real limitation of the contrastive approach, and it leads us to something more powerful.
 
 ## Going Further: Sparse Autoencoders
